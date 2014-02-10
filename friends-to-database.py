@@ -14,11 +14,32 @@ dbconnection = sqlite3.connect('friends.db')
 dbc = dbconnection.cursor()
 
 # Create table
-dbc.execute("CREATE TABLE friends (id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT)")
+# Need to do some database design here
+#dbc.execute("CREATE TABLE users (id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT)")
+dbc.execute("DROP TABLE IF EXISTS friends")
+dbc.execute("CREATE TABLE friends (id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT, profile_picture_url TEXT)")
 
 # Token from Facebook's Graph Explorer - put yours below
 # Permissions used: user_about_me, user_friends
-oauth_access_token = "token goes here"
+oauth_access_token = "CAACEdEose0cBAKfrfZANKmvZAY31q8eji1gQC3WZC1sCzZAxFnQWTLU6kJDvTGvb4XNjbvzIJ5htnRei6fw2hZBvaJDifV7qSp7OlrO03aZBZCC1rWpVwC9aZBvXonOrW3VU1uOvzzNMF2hDqOd0ibJdBHqurPPZBEcv69ersSHlzR5GZAZBq4kLQZBWeE2ZCqHus3kQZD"
+
+# Create the Friend object
+class Friend(object):
+    friend_id = 0
+    first_name = ""
+    last_name = ""
+    profile_picture_url = ""
+
+    def __init__(self, id, first_name, last_name, profile_picture_url):
+        self.friend_id = friend_id
+        self.first_name = first_name
+        self.last_name = last_name
+        self.profile_picture_url = profile_picture_url
+
+    # Insert the friend's ID and name into the friends table
+    def store_friend(self):
+        dbc.execute("INSERT INTO friends VALUES (?, ?, ?, ?)", (friend_id, first_name, last_name, profile_picture_url))
+
 
 # Access the Graph
 graph = facebook.GraphAPI(oauth_access_token)
@@ -29,23 +50,25 @@ profile = graph.get_object("me")
 print "Hello, " + profile['name'] + "\n"
 
 # Get my friends' Facebook ID, first name and last name
-friends = graph.get_connections("me", "friends", fields="first_name, last_name")
-
-# Retrieve list of friends
-friend_list = friends['data']
-
-print "Adding your friends to the database!"
+friend_list = graph.get_connections("me", "friends", fields="first_name, last_name")
 
 # Time to go through the list
-for friend in friend_list:
+for friend in friend_list['data']:
 
     # Pull id and name from list for each friend 
     friend_id = friend['id'].encode('ascii', 'ignore')
     first_name = friend['first_name'].encode('ascii', 'ignore')
     last_name = friend['last_name'].encode('ascii', 'ignore')
 
-    # Insert the friend's ID and name into the friends table
-    dbc.execute("INSERT INTO friends VALUES (?, ?, ?)", (friend_id, first_name, last_name))
+    # Pulls the URL for .
+    profile_picture_request = graph.get_object(friend_id, fields="picture")
+    profile_picture_url = profile_picture_request['picture']['data']['url'].encode('ascii', 'ignore')
+
+    current_friend = Friend(friend_id, first_name, last_name, profile_picture_url)
+    print "Added " + current_friend.first_name + " " + current_friend.last_name
+
+    # Insert the friend's attributes into the friends table
+    current_friend.store_friend()
 
 # Commit changes to db
 dbconnection.commit()
